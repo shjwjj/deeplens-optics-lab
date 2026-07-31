@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ApertureKey = "2.0" | "2.8" | "4.0";
 type ViewKey = "aperture" | "layout" | "spot" | "mtf" | "distortion" | "vignetting";
+type ImagingCaseKey = "aperture" | "spot" | "mtf" | "distortion" | "vignetting";
 
 type ConceptGuide = {
   title: string;
@@ -161,6 +162,406 @@ const captions: Record<ViewKey, string> = {
   vignetting: "图面越白表示相对照度越接近 1。本结果接近均匀照明。",
 };
 
+type ImagingCase = {
+  label: string;
+  scene: string;
+  title: string;
+  intro: string;
+  control: string;
+  low: string;
+  high: string;
+  initial: number;
+  format: (amount: number) => string;
+  cause: string;
+  lookFor: string[];
+  takeaway: string;
+};
+
+const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
+  aperture: {
+    label: "光圈与景深",
+    scene: "人像拍摄",
+    title: "为什么 F/2 的人像背景更容易虚化？",
+    intro: "人物保持对焦。把光圈开大，人物仍清楚，但后方窗框、树木和灯光会更快离开清晰范围。",
+    control: "拖动光圈",
+    low: "F/8 背景较清楚",
+    high: "F/2 背景更虚化",
+    initial: 0.78,
+    format: (amount) => `F/${(8 - amount * 6).toFixed(1)}`,
+    cause: "大光圈接收更宽的光束。焦点前后的物体不能在传感器上汇成一点，会形成更大的弥散圆，所以景深变浅。",
+    lookFor: ["人物眼睛和手中线条板保持清楚", "后方窗框与树叶逐渐变软", "点光源从小点变成更大的光斑"],
+    takeaway: "大光圈的典型画面效果是主体突出、背景虚化。若快门和 ISO 不变，画面也会更亮。",
+  },
+  spot: {
+    label: "点列图",
+    scene: "夜景光点",
+    title: "为什么画面边缘的路灯会长出小尾巴？",
+    intro: "观察左右路灯和窗内小灯。点像不能集中时，一个圆点会散成翅膀、彗尾或彩色边缘。",
+    control: "拖动光斑扩散",
+    low: "点像集中",
+    high: "边缘明显拉尾",
+    initial: 0.68,
+    format: (amount) => (amount < 0.34 ? "光斑集中" : amount < 0.67 ? "开始拉尾" : "边缘明显彗尾"),
+    cause: "点列图里的点云就是这些光线的落点。边缘点云越大、形状越不对称，照片里的小灯越容易拉成长尾。",
+    lookFor: ["先看画面左右两侧的大路灯", "再看建筑内部的小点光源", "比较中心灯点与边缘灯点的形状"],
+    takeaway: "点列图不是抽象散点。它直接预告星点、路灯和高光在照片里会长成什么样。",
+  },
+  mtf: {
+    label: "MTF",
+    scene: "文字与纹理",
+    title: "为什么照片看着不糊，却没有细节？",
+    intro: "观察人物手中的线条板、头发、衣服和地砖。MTF 降低时，粗轮廓还在，细线之间的黑白差异却会消失。",
+    control: "拖动细节传递",
+    low: "高频对比度高",
+    high: "高频对比度低",
+    initial: 0.56,
+    format: (amount) => (amount < 0.34 ? "细节传递较好" : amount < 0.67 ? "细纹开始变软" : "细纹难以分辨"),
+    cause: "MTF 描述不同粗细纹理的对比度还能保留多少。高频 MTF 低时，相邻细线会混在一起，但大楼和人物轮廓仍然存在。",
+    lookFor: ["手中线条板的细线是否还能分开", "头发和衣服纹理是否变成一片", "远处窗框的边缘是否失去干脆感"],
+    takeaway: "锐度不只是有没有边缘，还要看细小纹理保留了多少对比度。",
+  },
+  distortion: {
+    label: "畸变",
+    scene: "建筑直线",
+    title: "为什么建筑窗框会向外鼓？",
+    intro: "观察楼体外沿、窗框和地砖。畸变会改变它们在画面中的位置，让直线弯曲，但局部纹理仍可能很清楚。",
+    control: "拖动桶形畸变",
+    low: "0% 直线保持笔直",
+    high: "-16% 边缘明显外鼓",
+    initial: 0.62,
+    format: (amount) => `${(-16 * amount).toFixed(1)}% 桶形（教学示意）`,
+    cause: "不同视场的放大率不一致。越靠近画面边缘，物体位置偏移越多，于是本来笔直的线会弯成弧线。",
+    lookFor: ["楼体左右外沿是否变成弧线", "窗框的横线是否向外鼓", "人物细节仍可清楚，但位置已经改变"],
+    takeaway: "畸变主要改变形状和位置，不等于照片失焦。软件能校正，但通常需要裁切和插值。",
+  },
+  vignetting: {
+    label: "渐晕",
+    scene: "天空与白墙",
+    title: "为什么照片中心正常，四角却发暗？",
+    intro: "观察均匀天空和建筑四角。边缘收到的光减少后，中心曝光正常，四角仍会逐渐变暗。",
+    control: "拖动边缘照度",
+    low: "相对照度 1.00",
+    high: "相对照度 0.35",
+    initial: 0.66,
+    format: (amount) => `边缘相对照度 ${(1 - amount * 0.65).toFixed(2)}（教学示意）`,
+    cause: "斜着进入镜头的边缘光线更容易被镜筒和光阑遮挡，自然照度也会下降，所以传感器四角接收到的能量更少。",
+    lookFor: ["先比较天空中心与四角亮度", "再看左右建筑边缘是否一起变暗", "注意后期提亮四角会同时放大噪声"],
+    takeaway: "渐晕主要影响画面亮度均匀性。拍天空、白墙和扫描文档时尤其容易发现。",
+  },
+};
+
+const simulationSize = { width: 960, height: 640 };
+let distortionSourceCache: ImageData | null = null;
+
+function drawBaseImage(context: CanvasRenderingContext2D, image: HTMLImageElement) {
+  context.drawImage(image, 0, 0, simulationSize.width, simulationSize.height);
+}
+
+function drawSimulation(
+  canvas: HTMLCanvasElement,
+  image: HTMLImageElement,
+  caseKey: ImagingCaseKey,
+  amount: number,
+) {
+  const { width, height } = simulationSize;
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext("2d", { willReadFrequently: caseKey === "distortion" });
+  if (!context) return;
+
+  context.clearRect(0, 0, width, height);
+  context.imageSmoothingEnabled = true;
+  context.imageSmoothingQuality = "high";
+
+  if (caseKey === "aperture") {
+    context.save();
+    context.filter = `blur(${(amount * 8).toFixed(1)}px) brightness(${(1 + amount * 0.05).toFixed(2)})`;
+    drawBaseImage(context, image);
+    context.restore();
+
+    const sharpLayer = document.createElement("canvas");
+    sharpLayer.width = width;
+    sharpLayer.height = height;
+    const sharpContext = sharpLayer.getContext("2d");
+    if (!sharpContext) return;
+    drawBaseImage(sharpContext, image);
+    sharpContext.globalCompositeOperation = "destination-in";
+    sharpContext.save();
+    sharpContext.translate(width * 0.5, height * 0.57);
+    sharpContext.scale(1, 2.2);
+    const focusMask = sharpContext.createRadialGradient(0, 0, width * 0.1, 0, 0, width * 0.24);
+    focusMask.addColorStop(0, "rgba(255,255,255,1)");
+    focusMask.addColorStop(0.62, "rgba(255,255,255,1)");
+    focusMask.addColorStop(1, "rgba(255,255,255,0)");
+    sharpContext.fillStyle = focusMask;
+    sharpContext.fillRect(-width, -height, width * 2, height * 2);
+    sharpContext.restore();
+    context.drawImage(sharpLayer, 0, 0);
+    return;
+  }
+
+  if (caseKey === "mtf") {
+    context.save();
+    context.filter = `blur(${(amount * 4.8).toFixed(1)}px) contrast(${(1 - amount * 0.34).toFixed(2)})`;
+    drawBaseImage(context, image);
+    context.restore();
+    return;
+  }
+
+  if (caseKey === "distortion") {
+    if (!distortionSourceCache) {
+      const sourceCanvas = document.createElement("canvas");
+      sourceCanvas.width = width;
+      sourceCanvas.height = height;
+      const sourceContext = sourceCanvas.getContext("2d", { willReadFrequently: true });
+      if (!sourceContext) return;
+      drawBaseImage(sourceContext, image);
+      distortionSourceCache = sourceContext.getImageData(0, 0, width, height);
+    }
+
+    const source = distortionSourceCache.data;
+    const output = context.createImageData(width, height);
+    const target = output.data;
+    for (let y = 0; y < height; y += 1) {
+      const normalizedY = (y / (height - 1)) * 2 - 1;
+      for (let x = 0; x < width; x += 1) {
+        const normalizedX = (x / (width - 1)) * 2 - 1;
+        const radiusSquared = normalizedX * normalizedX + normalizedY * normalizedY;
+        const factor = 1 - amount * 0.18 * radiusSquared;
+        const sourceX = Math.max(0, Math.min(width - 1, Math.round(((normalizedX * factor + 1) / 2) * (width - 1))));
+        const sourceY = Math.max(0, Math.min(height - 1, Math.round(((normalizedY * factor + 1) / 2) * (height - 1))));
+        const sourceIndex = (sourceY * width + sourceX) * 4;
+        const targetIndex = (y * width + x) * 4;
+        target[targetIndex] = source[sourceIndex];
+        target[targetIndex + 1] = source[sourceIndex + 1];
+        target[targetIndex + 2] = source[sourceIndex + 2];
+        target[targetIndex + 3] = 255;
+      }
+    }
+    context.putImageData(output, 0, 0);
+    return;
+  }
+
+  drawBaseImage(context, image);
+
+  if (caseKey === "vignetting") {
+    const vignette = context.createRadialGradient(width * 0.5, height * 0.48, width * 0.12, width * 0.5, height * 0.5, width * 0.72);
+    vignette.addColorStop(0, "rgba(9,14,18,0)");
+    vignette.addColorStop(0.5, `rgba(9,14,18,${(amount * 0.08).toFixed(2)})`);
+    vignette.addColorStop(1, `rgba(9,14,18,${(amount * 0.82).toFixed(2)})`);
+    context.fillStyle = vignette;
+    context.fillRect(0, 0, width, height);
+    return;
+  }
+
+  if (caseKey === "spot") {
+    const pointLights = [
+      { x: 0.07, y: 0.37, size: 1.25 },
+      { x: 0.93, y: 0.37, size: 1.25 },
+      { x: 0.3, y: 0.51, size: 0.72 },
+      { x: 0.73, y: 0.51, size: 0.72 },
+      { x: 0.18, y: 0.6, size: 0.46 },
+      { x: 0.84, y: 0.6, size: 0.46 },
+    ];
+    context.save();
+    context.globalCompositeOperation = "screen";
+    pointLights.forEach((light) => {
+      const x = width * light.x;
+      const y = height * light.y;
+      const angle = Math.atan2(y - height * 0.5, x - width * 0.5);
+      const tailLength = amount * 48 * light.size;
+      const channelColors = ["rgba(235,70,52,0.34)", "rgba(80,190,102,0.3)", "rgba(55,118,232,0.36)"];
+      channelColors.forEach((color, channelIndex) => {
+        context.save();
+        context.translate(x, y);
+        context.rotate(angle);
+        context.translate(channelIndex * amount * 3 - amount * 3, 0);
+        context.beginPath();
+        context.ellipse(tailLength * 0.38, 0, 8 + tailLength, 5 + amount * 13, 0, 0, Math.PI * 2);
+        context.fillStyle = color;
+        context.fill();
+        context.restore();
+      });
+    });
+    context.restore();
+  }
+}
+
+function ImagingCases() {
+  const [activeCase, setActiveCase] = useState<ImagingCaseKey>("aperture");
+  const [sceneStatus, setSceneStatus] = useState<"loading" | "ready" | "error">("loading");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imageRef = useRef<HTMLImageElement | null>(null);
+  const sliderRef = useRef<HTMLInputElement>(null);
+  const outputRef = useRef<HTMLOutputElement>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const currentCase = imagingCases[activeCase];
+
+  useEffect(() => {
+    let active = true;
+    const image = new Image();
+    image.onload = () => {
+      if (!active) return;
+      imageRef.current = image;
+      setSceneStatus("ready");
+    };
+    image.onerror = () => {
+      if (active) setSceneStatus("error");
+    };
+    image.src = "lab/optics-test-scene.png";
+    return () => {
+      active = false;
+      image.onload = null;
+      image.onerror = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const amount = currentCase.initial;
+    if (sliderRef.current) sliderRef.current.value = String(amount * 100);
+    if (outputRef.current) outputRef.current.textContent = currentCase.format(amount);
+    if (sceneStatus === "ready" && canvasRef.current && imageRef.current) {
+      drawSimulation(canvasRef.current, imageRef.current, activeCase, amount);
+    }
+    return () => {
+      if (animationFrameRef.current !== null) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [activeCase, currentCase, sceneStatus]);
+
+  const updateStrength = (amount: number) => {
+    if (outputRef.current) outputRef.current.textContent = currentCase.format(amount);
+    if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = window.requestAnimationFrame(() => {
+      if (canvasRef.current && imageRef.current) {
+        drawSimulation(canvasRef.current, imageRef.current, activeCase, amount);
+      }
+    });
+  };
+
+  return (
+    <section className="imaging-cases" id="imaging-cases">
+      <header className="case-intro">
+        <h2>把工程图变成你能看见的照片影响。</h2>
+        <p>选择一个成像案例，再拖动参数。先建立画面直觉，然后回到点列图和 MTF 找物理原因。</p>
+      </header>
+
+      <div className="case-tabs" role="tablist" aria-label="成像案例">
+        {(Object.keys(imagingCases) as ImagingCaseKey[]).map((caseKey) => {
+          const item = imagingCases[caseKey];
+          return (
+            <button
+              key={caseKey}
+              id={`case-tab-${caseKey}`}
+              type="button"
+              role="tab"
+              aria-selected={activeCase === caseKey}
+              aria-controls="imaging-case-panel"
+              className={activeCase === caseKey ? "active" : ""}
+              onClick={() => setActiveCase(caseKey)}
+            >
+              <strong>{item.label}</strong>
+              <span>{item.scene}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div
+        className="case-workbench"
+        id="imaging-case-panel"
+        role="tabpanel"
+        aria-labelledby={`case-tab-${activeCase}`}
+      >
+        <div className="case-visual-area">
+          <div className="case-heading">
+            <span>{currentCase.scene}</span>
+            <h3>{currentCase.title}</h3>
+            <p>{currentCase.intro}</p>
+          </div>
+
+          <figure className="case-simulation">
+            <div className="case-canvas-shell">
+              {sceneStatus === "loading" && (
+                <div className="case-loading" role="status">
+                  <strong>正在准备教学场景</strong>
+                  <span>建筑直线、人物、纹理和点光源会同时出现</span>
+                </div>
+              )}
+              {sceneStatus === "error" && (
+                <div className="case-error" role="alert">
+                  <strong>教学场景暂时没有加载成功</strong>
+                  <span>请刷新页面后重试</span>
+                </div>
+              )}
+              <canvas
+                ref={canvasRef}
+                className={sceneStatus === "ready" ? "ready" : ""}
+                role="img"
+                aria-label={`${currentCase.scene}的${currentCase.label}成像效果模拟`}
+              />
+            </div>
+            <figcaption>右侧参数改变的是教学模拟效果。上方光学图仍是工程评价依据。</figcaption>
+          </figure>
+
+          <div className="case-baseline">
+            <img src="lab/optics-test-scene.png" alt="没有附加像差效果的原始基准场景" />
+            <div>
+              <strong>原始基准</strong>
+              <p>建筑线条笔直、四角均匀、点光源集中，人物和背景都保持清楚。用它和上方模拟画面对照。</p>
+            </div>
+          </div>
+        </div>
+
+        <aside className="case-teaching-panel">
+          <div className="case-control">
+            <label htmlFor="case-strength">{currentCase.control}</label>
+            <output ref={outputRef} htmlFor="case-strength" aria-live="polite">
+              {currentCase.format(currentCase.initial)}
+            </output>
+            <input
+              key={activeCase}
+              ref={sliderRef}
+              id="case-strength"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              defaultValue={currentCase.initial * 100}
+              onInput={(event) => updateStrength(Number(event.currentTarget.value) / 100)}
+            />
+            <div className="case-range-labels" aria-hidden="true">
+              <span>{currentCase.low}</span>
+              <span>{currentCase.high}</span>
+            </div>
+          </div>
+
+          <section className="case-principle">
+            <strong>为什么会这样</strong>
+            <p>{currentCase.cause}</p>
+          </section>
+
+          <section className="case-observe">
+            <strong>请观察三处</strong>
+            <ol>
+              {currentCase.lookFor.map((item) => (
+                <li key={item}>{item}</li>
+              ))}
+            </ol>
+          </section>
+
+          <div className="case-takeaway">
+            <span>带回拍摄现场</span>
+            <strong>{currentCase.takeaway}</strong>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}
+
 export default function Home() {
   const [aperture, setAperture] = useState<ApertureKey>("2.8");
   const [view, setView] = useState<ViewKey>("aperture");
@@ -182,6 +583,7 @@ export default function Home() {
         </a>
         <div className="top-meta">
           <span>零基础光学课</span>
+          <a href="#imaging-cases">成像案例</a>
           <a href="https://github.com/vccimaging/DeepLens">参考项目</a>
         </div>
       </header>
@@ -190,13 +592,15 @@ export default function Home() {
         <div>
           <p className="eyebrow">OPTICAL DESIGN LEARNING LAB</p>
           <h1>看懂一张图，理解一个光学概念。</h1>
-          <p className="lede">概念、真实计算图和照片影响放在一起，点击术语就能对照学习。</p>
+          <p className="lede">先看真实场景里的成像变化，再用计算图找到它背后的光学原因。</p>
         </div>
         <div className="intro-note">
-          <strong>先做这个实验</strong>
-          <p>选择 F/2、F/2.8、F/4，观察进光量、光斑、景深和衍射风险如何一起变化。</p>
+          <strong>小白建议从这里开始</strong>
+          <p>先拖动下方五个成像案例，再进入实验控制台查看点列图、MTF 和真实计算结果。</p>
         </div>
       </section>
+
+      <ImagingCases />
 
       <section className="lab" id="lab">
         <aside className="controls">

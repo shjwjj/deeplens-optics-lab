@@ -15,10 +15,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL("https://shjwjj.github.io/deeplens-optics-lab/"),
   title: "DeepLens 光学设计学习实验室",
-  description: "用真实计算图看懂光圈、点列图、MTF、畸变与渐晕，以及它们对照片的影响。",
+  description: "用可拖动的成像案例和 DeepLens 计算图，看懂光圈、点列图、MTF、畸变与渐晕。",
   openGraph: {
     title: "DeepLens 光学设计学习实验室",
-    description: "零基础看懂光圈、点列图、MTF、畸变与渐晕。",
+    description: "零基础用互动成像案例看懂光圈、点列图、MTF、畸变与渐晕。",
     images: ["https://shjwjj.github.io/deeplens-optics-lab/og.png"],
     locale: "zh_CN",
     type: "website",
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "DeepLens 光学设计学习实验室",
-    description: "零基础看懂光圈、点列图、MTF、畸变与渐晕。",
+    description: "零基础用互动成像案例看懂光圈、点列图、MTF、畸变与渐晕。",
     images: ["https://shjwjj.github.io/deeplens-optics-lab/og.png"],
   },
   icons: {
