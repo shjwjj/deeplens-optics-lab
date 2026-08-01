@@ -172,6 +172,9 @@ type ImagingCase = {
   high: string;
   initial: number;
   format: (amount: number) => string;
+  chartTitle: string;
+  chartIntro: string;
+  chartSummary: (amount: number) => string;
   cause: string;
   lookFor: string[];
   takeaway: string;
@@ -180,17 +183,20 @@ type ImagingCase = {
 const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
   aperture: {
     label: "光圈与景深",
-    scene: "人像拍摄",
-    title: "为什么 F/2 的人像背景更容易虚化？",
-    intro: "人物保持对焦。把光圈开大，人物仍清楚，但后方窗框、树木和灯光会更快离开清晰范围。",
+    scene: "对焦人物约 2 m",
+    title: "焦点锁定人物后，光圈怎样改变前后景深？",
+    intro: "对焦位置始终在人物，不是画面中间。把光圈开大，人物仍清楚，但更远的建筑和更近的地面会更快离开清晰范围。",
     control: "拖动光圈",
     low: "F/8 背景较清楚",
     high: "F/2 背景更虚化",
     initial: 0.78,
     format: (amount) => `F/${(8 - amount * 6).toFixed(1)}`,
-    cause: "大光圈接收更宽的光束。焦点前后的物体不能在传感器上汇成一点，会形成更大的弥散圆，所以景深变浅。",
-    lookFor: ["人物眼睛和手中线条板保持清楚", "后方窗框与树叶逐渐变软", "点光源从小点变成更大的光斑"],
-    takeaway: "大光圈的典型画面效果是主体突出、背景虚化。若快门和 ISO 不变，画面也会更亮。",
+    chartTitle: "人物与背景的离焦 MTF",
+    chartIntro: "人物焦点保持在约 2 m。这里只演示不同物距的离焦，不评价镜头本身的在焦像差。",
+    chartSummary: (amount) => `F/${(8 - amount * 6).toFixed(1)}：人物曲线保持较高，背景曲线${amount < 0.34 ? "与人物较接近" : amount < 0.67 ? "开始明显降低" : "在中高频明显降低"}。`,
+    cause: "对焦决定最清晰的物距，光圈决定这个物距前后有多大范围看起来清晰。大光圈让焦点前后的弥散圆增长更快，所以景深变浅。",
+    lookFor: ["人物眼睛和手中线条板保持清楚", "后方窗框与更近的地面逐渐变软", "左右变虚是因为那里主要是远处背景，不是因为它们位于画面两侧"],
+    takeaway: "对焦选择清晰位置，光圈调整这个位置前后的清晰范围。若快门和 ISO 不变，大光圈还会让画面更亮。",
   },
   spot: {
     label: "点列图",
@@ -202,6 +208,9 @@ const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
     high: "边缘明显拉尾",
     initial: 0.68,
     format: (amount) => (amount < 0.34 ? "光斑集中" : amount < 0.67 ? "开始拉尾" : "边缘明显彗尾"),
+    chartTitle: "边缘视场点列图",
+    chartIntro: "每个彩色点是一条光线在像面上的落点。点云大小与方向会同步反映在路灯的形状上。",
+    chartSummary: (amount) => `教学示意：点云${amount < 0.34 ? "紧贴中心" : amount < 0.67 ? "开始扩大并失去对称" : "明显扩大并沿离轴方向拉尾"}。`,
     cause: "点列图里的点云就是这些光线的落点。边缘点云越大、形状越不对称，照片里的小灯越容易拉成长尾。",
     lookFor: ["先看画面左右两侧的大路灯", "再看建筑内部的小点光源", "比较中心灯点与边缘灯点的形状"],
     takeaway: "点列图不是抽象散点。它直接预告星点、路灯和高光在照片里会长成什么样。",
@@ -216,6 +225,9 @@ const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
     high: "高频对比度低",
     initial: 0.56,
     format: (amount) => (amount < 0.34 ? "细节传递较好" : amount < 0.67 ? "细纹开始变软" : "细纹难以分辨"),
+    chartTitle: "MTF 随空间频率变化",
+    chartIntro: "曲线右侧代表更细的纹理。曲线在右侧下降时，线条板、头发和远处窗框最先失去对比度。",
+    chartSummary: (amount) => `教学示意：40 lp/mm 附近的对比度约为 ${Math.max(0.08, 0.6 * (1 - amount * 0.64)).toFixed(2)}，曲线越低，细纹越难分开。`,
     cause: "MTF 描述不同粗细纹理的对比度还能保留多少。高频 MTF 低时，相邻细线会混在一起，但大楼和人物轮廓仍然存在。",
     lookFor: ["手中线条板的细线是否还能分开", "头发和衣服纹理是否变成一片", "远处窗框的边缘是否失去干脆感"],
     takeaway: "锐度不只是有没有边缘，还要看细小纹理保留了多少对比度。",
@@ -230,6 +242,9 @@ const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
     high: "-16% 边缘明显外鼓",
     initial: 0.62,
     format: (amount) => `${(-16 * amount).toFixed(1)}% 桶形（教学示意）`,
+    chartTitle: "畸变随视场变化",
+    chartIntro: "画面中心在曲线左侧，边缘在右侧。曲线越向负值偏离 0，建筑边缘越向外鼓。",
+    chartSummary: (amount) => `教学示意：全视场畸变为 ${(-16 * amount).toFixed(1)}%，中心接近 0，边缘位置偏移最大。`,
     cause: "不同视场的放大率不一致。越靠近画面边缘，物体位置偏移越多，于是本来笔直的线会弯成弧线。",
     lookFor: ["楼体左右外沿是否变成弧线", "窗框的横线是否向外鼓", "人物细节仍可清楚，但位置已经改变"],
     takeaway: "畸变主要改变形状和位置，不等于照片失焦。软件能校正，但通常需要裁切和插值。",
@@ -244,6 +259,9 @@ const imagingCases: Record<ImagingCaseKey, ImagingCase> = {
     high: "相对照度 0.35",
     initial: 0.66,
     format: (amount) => `边缘相对照度 ${(1 - amount * 0.65).toFixed(2)}（教学示意）`,
+    chartTitle: "相对照度随视场变化",
+    chartIntro: "画面中心在曲线左侧，边缘在右侧。曲线右端越低，照片四角收到的光越少。",
+    chartSummary: (amount) => `教学示意：中心相对照度为 1.00，全视场下降到 ${(1 - amount * 0.65).toFixed(2)}。`,
     cause: "斜着进入镜头的边缘光线更容易被镜筒和光阑遮挡，自然照度也会下降，所以传感器四角接收到的能量更少。",
     lookFor: ["先比较天空中心与四角亮度", "再看左右建筑边缘是否一起变暗", "注意后期提亮四角会同时放大噪声"],
     takeaway: "渐晕主要影响画面亮度均匀性。拍天空、白墙和扫描文档时尤其容易发现。",
@@ -285,17 +303,33 @@ function drawSimulation(
     const sharpContext = sharpLayer.getContext("2d");
     if (!sharpContext) return;
     drawBaseImage(sharpContext, image);
+    const maskLayer = document.createElement("canvas");
+    maskLayer.width = width;
+    maskLayer.height = height;
+    const maskContext = maskLayer.getContext("2d");
+    if (!maskContext) return;
+    maskContext.filter = `blur(${(5 + amount * 5).toFixed(1)}px)`;
+    maskContext.fillStyle = "rgba(255,255,255,1)";
+    maskContext.beginPath();
+    maskContext.ellipse(width * 0.5, height * 0.34, width * 0.055, height * 0.075, 0, 0, Math.PI * 2);
+    maskContext.fill();
+    maskContext.fillRect(width * 0.425, height * 0.42, width * 0.15, height * 0.16);
+    maskContext.beginPath();
+    maskContext.moveTo(width * 0.445, height * 0.4);
+    maskContext.quadraticCurveTo(width * 0.405, height * 0.47, width * 0.435, height * 0.59);
+    maskContext.lineTo(width * 0.46, height * 0.64);
+    maskContext.lineTo(width * 0.46, height * 0.94);
+    maskContext.lineTo(width * 0.495, height * 0.94);
+    maskContext.lineTo(width * 0.5, height * 0.66);
+    maskContext.lineTo(width * 0.505, height * 0.94);
+    maskContext.lineTo(width * 0.54, height * 0.94);
+    maskContext.lineTo(width * 0.54, height * 0.64);
+    maskContext.lineTo(width * 0.565, height * 0.59);
+    maskContext.quadraticCurveTo(width * 0.595, height * 0.47, width * 0.555, height * 0.4);
+    maskContext.closePath();
+    maskContext.fill();
     sharpContext.globalCompositeOperation = "destination-in";
-    sharpContext.save();
-    sharpContext.translate(width * 0.5, height * 0.57);
-    sharpContext.scale(1, 2.2);
-    const focusMask = sharpContext.createRadialGradient(0, 0, width * 0.1, 0, 0, width * 0.24);
-    focusMask.addColorStop(0, "rgba(255,255,255,1)");
-    focusMask.addColorStop(0.62, "rgba(255,255,255,1)");
-    focusMask.addColorStop(1, "rgba(255,255,255,0)");
-    sharpContext.fillStyle = focusMask;
-    sharpContext.fillRect(-width, -height, width * 2, height * 2);
-    sharpContext.restore();
+    sharpContext.drawImage(maskLayer, 0, 0);
     context.drawImage(sharpLayer, 0, 0);
     return;
   }
@@ -387,13 +421,233 @@ function drawSimulation(
   }
 }
 
+type PlotBounds = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+type PlotTheme = {
+  ink: string;
+  muted: string;
+  line: string;
+  accent: string;
+  panel: string;
+};
+
+const engineeringChartSize = { width: 720, height: 520 };
+const chartPlot: PlotBounds = { left: 74, top: 68, width: 604, height: 350 };
+
+function clamp(value: number, minimum = 0, maximum = 1) {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function readPlotTheme(canvas: HTMLCanvasElement): PlotTheme {
+  const style = window.getComputedStyle(canvas);
+  const read = (name: string, fallback: string) => style.getPropertyValue(name).trim() || fallback;
+  return {
+    ink: read("--ink", "#17212b"),
+    muted: read("--muted", "#5e6972"),
+    line: read("--line", "#d7dee2"),
+    accent: read("--accent", "#b94729"),
+    panel: read("--panel", "#ffffff"),
+  };
+}
+
+function drawPlotFrame(
+  context: CanvasRenderingContext2D,
+  theme: PlotTheme,
+  yLabels: string[],
+  xLabels: string[],
+  yTitle: string,
+  xTitle: string,
+) {
+  const { left, top, width, height } = chartPlot;
+  context.fillStyle = theme.panel;
+  context.fillRect(0, 0, engineeringChartSize.width, engineeringChartSize.height);
+  context.lineWidth = 1.4;
+  context.strokeStyle = theme.line;
+  context.setLineDash([]);
+
+  for (let index = 0; index < 5; index += 1) {
+    const x = left + (width * index) / 4;
+    const y = top + (height * index) / 4;
+    context.beginPath();
+    context.moveTo(x, top);
+    context.lineTo(x, top + height);
+    context.stroke();
+    context.beginPath();
+    context.moveTo(left, y);
+    context.lineTo(left + width, y);
+    context.stroke();
+  }
+
+  context.fillStyle = theme.muted;
+  context.font = '18px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textBaseline = "middle";
+  yLabels.forEach((label, index) => {
+    context.textAlign = "right";
+    context.fillText(label, left - 14, top + (height * index) / 4);
+  });
+  xLabels.forEach((label, index) => {
+    context.textAlign = "center";
+    context.fillText(label, left + (width * index) / 4, top + height + 26);
+  });
+
+  context.fillStyle = theme.ink;
+  context.font = '600 20px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textAlign = "left";
+  context.fillText(yTitle, left, 34);
+  context.textAlign = "center";
+  context.fillText(xTitle, left + width / 2, engineeringChartSize.height - 24);
+}
+
+function drawCurve(
+  context: CanvasRenderingContext2D,
+  values: (position: number) => number,
+  color: string,
+  dashed = false,
+) {
+  const { left, top, width, height } = chartPlot;
+  context.save();
+  context.strokeStyle = color;
+  context.lineWidth = 4;
+  context.lineJoin = "round";
+  context.lineCap = "round";
+  context.setLineDash(dashed ? [12, 10] : []);
+  context.beginPath();
+  for (let index = 0; index <= 100; index += 1) {
+    const position = index / 100;
+    const x = left + position * width;
+    const y = top + (1 - clamp(values(position))) * height;
+    if (index === 0) context.moveTo(x, y);
+    else context.lineTo(x, y);
+  }
+  context.stroke();
+  context.restore();
+}
+
+function drawLegend(
+  context: CanvasRenderingContext2D,
+  theme: PlotTheme,
+  items: Array<{ label: string; color: string; dashed?: boolean }>,
+) {
+  const startX = chartPlot.left + 12;
+  const y = chartPlot.top + 22;
+  let cursor = startX;
+  context.font = '17px "PingFang SC", "Microsoft YaHei", sans-serif';
+  context.textBaseline = "middle";
+  items.forEach((item) => {
+    context.save();
+    context.strokeStyle = item.color;
+    context.lineWidth = 4;
+    context.setLineDash(item.dashed ? [9, 7] : []);
+    context.beginPath();
+    context.moveTo(cursor, y);
+    context.lineTo(cursor + 32, y);
+    context.stroke();
+    context.restore();
+    context.fillStyle = theme.ink;
+    context.textAlign = "left";
+    context.fillText(item.label, cursor + 42, y);
+    cursor += 42 + context.measureText(item.label).width + 28;
+  });
+}
+
+function mtfResponse(position: number, amount: number, directionalLoss = 0) {
+  const base = 0.98 - 0.5 * Math.pow(position, 1.2);
+  const loss = 1 - amount * (0.1 + 0.72 * Math.pow(position, 1.3));
+  return clamp(base * loss - directionalLoss * amount * position, 0.04, 1);
+}
+
+function drawEngineeringChart(canvas: HTMLCanvasElement, caseKey: ImagingCaseKey, amount: number) {
+  canvas.width = engineeringChartSize.width;
+  canvas.height = engineeringChartSize.height;
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const theme = readPlotTheme(canvas);
+  context.clearRect(0, 0, engineeringChartSize.width, engineeringChartSize.height);
+
+  if (caseKey === "aperture") {
+    drawPlotFrame(context, theme, ["1.0", "0.75", "0.50", "0.25", "0"], ["0", "12.5", "25", "37.5", "50"], "MTF", "空间频率 lp/mm");
+    const subject = (position: number) => clamp(0.97 - 0.38 * Math.pow(position, 1.25) - amount * 0.06 * position, 0.08, 1);
+    const background = (position: number) => clamp((0.92 - 0.42 * Math.pow(position, 1.2)) * (1 - amount * (0.58 + 0.24 * position)), 0.03, 1);
+    drawCurve(context, subject, theme.accent);
+    drawCurve(context, background, theme.muted, true);
+    drawLegend(context, theme, [
+      { label: "人物约 2 m", color: theme.accent },
+      { label: "背景约 8 m", color: theme.muted, dashed: true },
+    ]);
+    return;
+  }
+
+  if (caseKey === "spot") {
+    drawPlotFrame(context, theme, ["+30", "+15", "0", "-15", "-30"], ["-30", "-15", "0", "+15", "+30"], "像面 Y（教学尺度）", "像面 X（教学尺度）");
+    const centerX = chartPlot.left + chartPlot.width / 2;
+    const centerY = chartPlot.top + chartPlot.height / 2;
+    const channelColors = ["rgba(214,72,54,0.78)", "rgba(63,143,87,0.72)", "rgba(51,107,200,0.74)"];
+    const spread = 5 + amount * 38;
+    channelColors.forEach((color, channelIndex) => {
+      context.fillStyle = color;
+      for (let index = 0; index < 56; index += 1) {
+        const turn = index * 2.399 + channelIndex * 0.56;
+        const radius = spread * (0.16 + ((index * 13) % 53) / 53);
+        const tail = amount * 88 * Math.pow(index / 55, 1.7);
+        const x = centerX + Math.cos(turn) * radius * 0.72 + tail + (channelIndex - 1) * amount * 8;
+        const y = centerY + Math.sin(turn) * radius * (0.62 + amount * 0.36);
+        context.beginPath();
+        context.arc(x, y, 3.3, 0, Math.PI * 2);
+        context.fill();
+      }
+    });
+    context.fillStyle = theme.ink;
+    context.font = '17px "PingFang SC", "Microsoft YaHei", sans-serif';
+    context.textAlign = "left";
+    context.fillText("红、绿、蓝表示不同波长", chartPlot.left + 14, chartPlot.top + 22);
+    return;
+  }
+
+  if (caseKey === "mtf") {
+    drawPlotFrame(context, theme, ["1.0", "0.75", "0.50", "0.25", "0"], ["0", "12.5", "25", "37.5", "50"], "MTF", "空间频率 lp/mm");
+    drawCurve(context, (position) => mtfResponse(position, amount), theme.accent);
+    drawCurve(context, (position) => mtfResponse(position, amount, 0.09), theme.muted, true);
+    drawLegend(context, theme, [
+      { label: "T 切向", color: theme.accent },
+      { label: "S 弧矢", color: theme.muted, dashed: true },
+    ]);
+    return;
+  }
+
+  if (caseKey === "distortion") {
+    drawPlotFrame(context, theme, ["0", "-4", "-8", "-12", "-16"], ["中心 0", "0.25", "0.50", "0.75", "边缘 1"], "畸变 (%)", "归一化视场");
+    drawCurve(context, () => 1, theme.muted, true);
+    drawCurve(context, (position) => 1 - (amount * Math.pow(position, 2.2)), theme.accent);
+    drawLegend(context, theme, [
+      { label: "0% 基准", color: theme.muted, dashed: true },
+      { label: "当前桶形", color: theme.accent },
+    ]);
+    return;
+  }
+
+  drawPlotFrame(context, theme, ["1.0", "0.84", "0.68", "0.51", "0.35"], ["中心 0", "0.25", "0.50", "0.75", "边缘 1"], "相对照度", "归一化视场");
+  drawCurve(context, () => 1, theme.muted, true);
+  drawCurve(context, (position) => 1 - amount * 0.65 * Math.pow(position, 2.4), theme.accent);
+  drawLegend(context, theme, [
+    { label: "均匀照度", color: theme.muted, dashed: true },
+    { label: "当前照度", color: theme.accent },
+  ]);
+}
+
 function ImagingCases() {
   const [activeCase, setActiveCase] = useState<ImagingCaseKey>("aperture");
   const [sceneStatus, setSceneStatus] = useState<"loading" | "ready" | "error">("loading");
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const chartCanvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const sliderRef = useRef<HTMLInputElement>(null);
   const outputRef = useRef<HTMLOutputElement>(null);
+  const chartOutputRef = useRef<HTMLOutputElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const currentCase = imagingCases[activeCase];
 
@@ -420,6 +674,8 @@ function ImagingCases() {
     const amount = currentCase.initial;
     if (sliderRef.current) sliderRef.current.value = String(amount * 100);
     if (outputRef.current) outputRef.current.textContent = currentCase.format(amount);
+    if (chartOutputRef.current) chartOutputRef.current.textContent = currentCase.chartSummary(amount);
+    if (chartCanvasRef.current) drawEngineeringChart(chartCanvasRef.current, activeCase, amount);
     if (sceneStatus === "ready" && canvasRef.current && imageRef.current) {
       drawSimulation(canvasRef.current, imageRef.current, activeCase, amount);
     }
@@ -433,10 +689,14 @@ function ImagingCases() {
 
   const updateStrength = (amount: number) => {
     if (outputRef.current) outputRef.current.textContent = currentCase.format(amount);
+    if (chartOutputRef.current) chartOutputRef.current.textContent = currentCase.chartSummary(amount);
     if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
     animationFrameRef.current = window.requestAnimationFrame(() => {
       if (canvasRef.current && imageRef.current) {
         drawSimulation(canvasRef.current, imageRef.current, activeCase, amount);
+      }
+      if (chartCanvasRef.current) {
+        drawEngineeringChart(chartCanvasRef.current, activeCase, amount);
       }
     });
   };
@@ -444,8 +704,8 @@ function ImagingCases() {
   return (
     <section className="imaging-cases" id="imaging-cases">
       <header className="case-intro">
-        <h2>把工程图变成你能看见的照片影响。</h2>
-        <p>选择一个成像案例，再拖动参数。先建立画面直觉，然后回到点列图和 MTF 找物理原因。</p>
+        <h2>照片怎么变，工程图就怎么变。</h2>
+        <p>拖动同一个参数，左边看照片，右边看对应的 MTF、点列图、畸变或渐晕曲线。</p>
       </header>
 
       <div className="case-tabs" role="tablist" aria-label="成像案例">
@@ -482,29 +742,58 @@ function ImagingCases() {
             <p>{currentCase.intro}</p>
           </div>
 
-          <figure className="case-simulation">
-            <div className="case-canvas-shell">
-              {sceneStatus === "loading" && (
-                <div className="case-loading" role="status">
-                  <strong>正在准备教学场景</strong>
-                  <span>建筑直线、人物、纹理和点光源会同时出现</span>
-                </div>
-              )}
-              {sceneStatus === "error" && (
-                <div className="case-error" role="alert">
-                  <strong>教学场景暂时没有加载成功</strong>
-                  <span>请刷新页面后重试</span>
-                </div>
-              )}
-              <canvas
-                ref={canvasRef}
-                className={sceneStatus === "ready" ? "ready" : ""}
-                role="img"
-                aria-label={`${currentCase.scene}的${currentCase.label}成像效果模拟`}
-              />
-            </div>
-            <figcaption>右侧参数改变的是教学模拟效果。上方光学图仍是工程评价依据。</figcaption>
-          </figure>
+          <div className="case-linked-visuals">
+            <figure className="case-simulation">
+              <div className="case-figure-heading">
+                <span>成像结果</span>
+                <strong>照片里发生了什么</strong>
+              </div>
+              <div className="case-canvas-shell">
+                {sceneStatus === "loading" && (
+                  <div className="case-loading" role="status">
+                    <strong>正在准备教学场景</strong>
+                    <span>建筑直线、人物、纹理和点光源会同时出现</span>
+                  </div>
+                )}
+                {sceneStatus === "error" && (
+                  <div className="case-error" role="alert">
+                    <strong>教学场景暂时没有加载成功</strong>
+                    <span>请刷新页面后重试</span>
+                  </div>
+                )}
+                <canvas
+                  ref={canvasRef}
+                  className={sceneStatus === "ready" ? "ready" : ""}
+                  role="img"
+                  aria-label={`${currentCase.scene}的${currentCase.label}成像效果模拟`}
+                />
+              </div>
+              <figcaption>
+                {activeCase === "aperture"
+                  ? "焦点锁定人物约 2 m。清晰度按物距变化，不按画面左右位置变化。"
+                  : "照片效果与右侧工程图使用同一个教学参数同步变化。"}
+              </figcaption>
+            </figure>
+
+            <figure className="engineering-figure">
+              <div className="case-figure-heading">
+                <span>工程图同步变化</span>
+                <strong>{currentCase.chartTitle}</strong>
+              </div>
+              <p>{currentCase.chartIntro}</p>
+              <div className="engineering-canvas-shell">
+                <canvas
+                  ref={chartCanvasRef}
+                  role="img"
+                  aria-label={`${currentCase.chartTitle}的动态教学示意图`}
+                />
+              </div>
+              <output ref={chartOutputRef} className="engineering-summary">
+                {currentCase.chartSummary(currentCase.initial)}
+              </output>
+              <figcaption>动态曲线用于建立直觉，数值标注为教学示意。真实设计仍需使用光学模型计算。</figcaption>
+            </figure>
+          </div>
 
           <div className="case-baseline">
             <img src="lab/optics-test-scene.png" alt="没有附加像差效果的原始基准场景" />

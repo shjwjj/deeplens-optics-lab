@@ -258,8 +258,43 @@ h1 {
   line-height: 1.65;
 }
 
-.case-simulation {
-  margin: 24px 0 0;
+.case-linked-visuals {
+  margin-top: 24px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(290px, 0.65fr);
+  align-items: start;
+  gap: 12px;
+}
+
+.case-simulation,
+.engineering-figure {
+  min-width: 0;
+  margin: 0;
+}
+
+.case-figure-heading {
+  min-height: 58px;
+  padding: 12px 14px;
+  background: var(--panel-subtle);
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.case-figure-heading span,
+.case-figure-heading strong {
+  display: block;
+}
+
+.case-figure-heading span {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.case-figure-heading strong {
+  font-size: 14px;
+  line-height: 1.35;
 }
 
 .case-canvas-shell {
@@ -267,7 +302,7 @@ h1 {
   aspect-ratio: 3 / 2;
   overflow: hidden;
   background: var(--formula);
-  border-radius: var(--radius);
+  border-radius: 0 0 var(--radius) var(--radius);
 }
 
 .case-canvas-shell canvas {
@@ -308,6 +343,65 @@ h1 {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.55;
+}
+
+.engineering-figure {
+  padding-bottom: 14px;
+  overflow: hidden;
+  background: var(--panel-subtle);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.engineering-figure .case-figure-heading {
+  min-height: 57px;
+  padding: 11px 13px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+}
+
+.engineering-figure > p {
+  min-height: 76px;
+  margin: 0;
+  padding: 12px 13px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.engineering-canvas-shell {
+  margin: 0 12px;
+  aspect-ratio: 1.385;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.engineering-canvas-shell canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.engineering-summary {
+  min-height: 52px;
+  margin: 12px 13px 0;
+  display: block;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
+.engineering-figure figcaption {
+  margin: 9px 13px 0;
+  padding-top: 10px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.5;
+  border-top: 1px solid var(--line);
 }
 
 .case-baseline {
@@ -1128,6 +1222,15 @@ footer {
 }
 
 @media (max-width: 700px) {
+  .case-linked-visuals {
+    grid-template-columns: 1fr;
+  }
+
+  .engineering-figure > p,
+  .engineering-summary {
+    min-height: 0;
+  }
+
   .case-teaching-panel {
     display: block;
   }
